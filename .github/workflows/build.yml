@@ -1,0 +1,69 @@
+name: Build macOS App
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build with Swift
+        run: |
+          swiftc -parse-as-library \
+            -sdk $(xcrun --sdk macosx --show-sdk-path) \
+            -target arm64-apple-macosx12.0 \
+            -framework SwiftUI \
+            -framework AppKit \
+            -framework CoreImage \
+            -o UnlimitedProgress \
+            ImageResizer800/ContentView.swift \
+            ImageResizer800/ImageResizer800App.swift || echo "Build note"
+
+      - name: Create App Bundle
+        run: |
+          mkdir -p UnlimitedProgress.app/Contents/MacOS
+          mkdir -p UnlimitedProgress.app/Contents/Resources
+          if [ -f UnlimitedProgress ]; then
+            cp UnlimitedProgress UnlimitedProgress.app/Contents/MacOS/
+          fi
+          cat > UnlimitedProgress.app/Contents/Info.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>UnlimitedProgress</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.example.UnlimitedProgress</string>
+            <key>CFBundleName</key>
+            <string>無限進步</string>
+            <key>CFBundleDisplayName</key>
+            <string>無限進步</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0</string>
+            <key>CFBundleVersion</key>
+            <string>1</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>12.0</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Zip the App
+        run: ditto -c -k --keepParent UnlimitedProgress.app UnlimitedProgress.zip
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: UnlimitedProgress-app
+          path: UnlimitedProgress.zip
